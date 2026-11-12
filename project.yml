@@ -1,0 +1,21 @@
+name: ServerHost
+options:
+  bundleIdPrefix: com.jn5ncjzj7j
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  ServerHost:
+    type: application
+    platform: iOS
+    sources:
+      - path: ServerHost
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jn5ncjzj7j.ServerHost
+        PRODUCT_NAME: ServerHost
+        SWIFT_VERSION: 5.9
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
