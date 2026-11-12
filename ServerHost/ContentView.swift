@@ -24,6 +24,46 @@ struct DashboardView: View {
     @State private var profileToDelete: ServerProfile?
     @State private var showingDelete = false
 
+    private var selectedPortBinding: Binding<String> {
+        store.selectedServer?.edition == Edition.bedrock.rawValue ? $bedrockPort : $serverPort
+    }
+
+    private var selectedPortPlaceholder: String {
+        store.selectedServer?.edition == Edition.bedrock.rawValue ? "Bedrock UDP port" : "Java TCP port"
+    }
+
+    private var defaultSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("DEFAULT SETTINGS").font(.caption.bold()).foregroundStyle(.secondary)
+            TextField(selectedPortPlaceholder, text: selectedPortBinding).keyboardType(.numberPad)
+            Toggle("Online Mode", isOn: $onlineMode)
+            TextField("Maximum players (1–1,000,000)", value: $maxPlayers, format: .number.precision(.fractionLength(0)))
+                .keyboardType(.numberPad)
+                .onChange(of: maxPlayers) { value in
+                    let safeValue = value.isFinite ? value : 20
+                    maxPlayers = Double(min(1_000_000, max(1, Int(safeValue.rounded()))))
+                }
+            HStack {
+                Label("Memory allocation", systemImage: "memorychip")
+                Spacer()
+                Text("\(Int(ram)) MB / \(Int(DeviceMemoryPolicy.maximumJavaHeapMB)) MB").foregroundStyle(.secondary)
+            }
+            Slider(value: $ram, in: 512...DeviceMemoryPolicy.maximumJavaHeapMB, step: 256)
+                .tint(.green)
+                .onChange(of: ram) { value in
+                    ram = min(DeviceMemoryPolicy.maximumJavaHeapMB, max(512, value))
+                }
+            Text("Device memory: \(DeviceMemoryPolicy.physicalMemoryGB, specifier: "%.1f") GB. ServerHost reserves memory for iPadOS and other apps.")
+                .font(.caption).foregroundStyle(.secondary)
+                .onAppear {
+                    ram = min(DeviceMemoryPolicy.maximumJavaHeapMB, max(512, ram))
+                    maxPlayers = Double(DeviceMemoryPolicy.clampedPlayerCount(maxPlayers))
+                }
+        }
+        .padding()
+        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -152,30 +192,7 @@ struct DashboardView: View {
                         .padding().background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
                     }
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("DEFAULT SETTINGS").font(.caption.bold()).foregroundStyle(.secondary)
-                        TextField(server?.edition == Edition.bedrock.rawValue ? "Bedrock UDP port" : "Java TCP port", text: server?.edition == Edition.bedrock.rawValue ? $bedrockPort : $serverPort)
-                            .keyboardType(.numberPad)
-                        Toggle("Online Mode", isOn: $onlineMode)
-                        TextField("Maximum players (1–1,000,000)", value: $maxPlayers, format: .number.precision(.fractionLength(0)))
-                            .keyboardType(.numberPad)
-                            .onChange(of: maxPlayers) { value in
-                                maxPlayers = Double(min(1_000_000, max(1, Int((value.isFinite ? value : 20).rounded()))))
-                            }
-                        HStack { Label("Memory allocation", systemImage: "memorychip"); Spacer(); Text("\(Int(ram)) MB / \(Int(DeviceMemoryPolicy.maximumJavaHeapMB)) MB").foregroundStyle(.secondary) }
-                        Slider(value: $ram, in: 512...DeviceMemoryPolicy.maximumJavaHeapMB, step: 256)
-                            .tint(.green)
-                            .onChange(of: ram) { value in
-                                ram = min(DeviceMemoryPolicy.maximumJavaHeapMB, max(512, value))
-                            }
-                        Text("Device memory: \(DeviceMemoryPolicy.physicalMemoryGB, specifier: "%.1f") GB. ServerHost reserves memory for iPadOS and other apps.")
-                            .font(.caption).foregroundStyle(.secondary)
-                            .onAppear {
-                                ram = min(DeviceMemoryPolicy.maximumJavaHeapMB, max(512, ram))
-                                maxPlayers = min(1_000_000, max(1, maxPlayers))
-                            }
-                    }
-                    .padding().background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
+                    defaultSettingsSection
                 }.padding()
             }
             .navigationTitle("ServerHost")
