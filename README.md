@@ -9,6 +9,8 @@ A SwiftUI Minecraft server installer and multi-server profile manager for iPhone
 - Multiple saved server profiles
 - Automatic Java requirement detection for Java 8, 17, 21 and 25
 - Real server-file downloads for Mojang Vanilla, Paper and PocketMine-MP
+- Live download progress with percentage and downloaded/total MB
+- App icon asset catalog ready for your custom 1024×1024 PNG
 - Bedrock plugin server release discovery from GitHub Releases where available
 - Downloaded files stored in the app's Documents directory
 - GitHub Actions unsigned IPA build
