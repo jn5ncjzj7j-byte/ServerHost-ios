@@ -26,7 +26,12 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("SAVED SERVERS").font(.caption.bold()).foregroundStyle(.secondary)
                         if store.servers.isEmpty {
-                            ContentUnavailableView("No servers installed", systemImage: "server.rack", description: Text("Open Install to download a supported server."))
+                            VStack(spacing: 8) {
+                                Image(systemName: "server.rack").font(.largeTitle).foregroundStyle(.secondary)
+                                Text("No servers installed").font(.headline)
+                                Text("Open Install to download a supported server.").font(.caption).foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 24)
                         } else {
                             ForEach(store.servers) { server in
                                 Button { store.selectedServerID = server.id } label: {
