@@ -68,8 +68,11 @@ struct DashboardView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("SELECTED SERVER").font(.caption.bold()).foregroundStyle(.secondary)
                             Text(server.name).font(.title2.bold())
-                            Label(runtime.isRunning ? "Server running" : "Server stopped", systemImage: runtime.isRunning ? "play.circle.fill" : "stop.circle")
-                                .font(.subheadline).foregroundStyle(runtime.isRunning ? .green : .secondary)
+                            Label(
+                                server.edition == Edition.bedrock.rawValue ? "Files ready · Linux host required" : (runtime.isRunning ? "Server running" : "Server stopped"),
+                                systemImage: server.edition == Edition.bedrock.rawValue ? "externaldrive" : (runtime.isRunning ? "play.circle.fill" : "stop.circle")
+                            )
+                            .font(.subheadline).foregroundStyle(runtime.isRunning ? .green : .secondary)
                             if let java = server.javaVersion {
                                 Label("Requires Java \(java)", systemImage: "cup.and.saucer").font(.subheadline)
                             }
@@ -96,18 +99,18 @@ struct DashboardView: View {
                             }
                             HStack(spacing: 10) {
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text("PLAYERS").font(.caption2.bold()).foregroundStyle(.secondary)
-                                    Text("\(runtime.onlinePlayers)/\(runtime.maximumPlayers)").font(.title3.bold().monospacedDigit())
+                                    Text(server.edition == Edition.bedrock.rawValue ? "PLAYER LIMIT" : "PLAYERS").font(.caption2.bold()).foregroundStyle(.secondary)
+                                    Text(server.edition == Edition.bedrock.rawValue ? "0/\(Int(maxPlayers))" : "\(runtime.onlinePlayers)/\(runtime.maximumPlayers)").font(.title3.bold().monospacedDigit())
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text("RAM USAGE").font(.caption2.bold()).foregroundStyle(.secondary)
-                                    Text("\(runtime.memoryUsageMB) MB").font(.title3.bold().monospacedDigit())
+                                    Text(server.edition == Edition.bedrock.rawValue ? "Linux host" : "\(runtime.memoryUsageMB) MB").font(.title3.bold().monospacedDigit())
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                             }
                             HStack(spacing: 10) {
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text("LOCAL IP").font(.caption2.bold()).foregroundStyle(.secondary)
-                                    Text(runtime.localIPAddress).font(.subheadline.bold().monospaced()).lineLimit(1).minimumScaleFactor(0.75)
+                                    Text(server.edition == Edition.bedrock.rawValue ? "Linux host IP" : runtime.localIPAddress).font(.subheadline.bold().monospaced()).lineLimit(1).minimumScaleFactor(0.75)
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text("PORT").font(.caption2.bold()).foregroundStyle(.secondary)
