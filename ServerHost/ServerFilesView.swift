@@ -41,7 +41,11 @@ struct ServerFilesView: View {
                         .padding()
 
                         if files.isEmpty {
-                            ContentUnavailableView("No files found", systemImage: "folder", description: Text("Add files or install a server first."))
+                            VStack(spacing: 8) {
+                                Image(systemName: "folder").font(.largeTitle).foregroundStyle(.secondary)
+                                Text("No files found").font(.headline)
+                                Text("Add files or install a server first.").font(.caption).foregroundStyle(.secondary)
+                            }.frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             List {
                                 ForEach(files, id: \.path) { file in
@@ -116,7 +120,11 @@ struct ServerFilesView: View {
                         }
                     }
                 } else {
-                    ContentUnavailableView("Select a server", systemImage: "server.rack", description: Text("Install or select a server to manage its files."))
+                    VStack(spacing: 8) {
+                        Image(systemName: "server.rack").font(.largeTitle).foregroundStyle(.secondary)
+                        Text("Select a server").font(.headline)
+                        Text("Install or select a server to manage its files.").font(.caption).foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("Files")
