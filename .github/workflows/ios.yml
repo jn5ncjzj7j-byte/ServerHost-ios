@@ -22,6 +22,7 @@ jobs:
         run: |
           ICON="Assets.xcassets/AppIcon.appiconset/AppIcon.png"
           test -f "$ICON"
+          sips -s format png -z 1024 1024 "$ICON" --out "$ICON"
           swift - "$ICON" <<'SWIFT'
           import AppKit
           import Foundation
