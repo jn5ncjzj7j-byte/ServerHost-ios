@@ -76,6 +76,7 @@ static void *launch_server(void *value) {
     setenv("JAVA_HOME", arguments->java_home, 1);
     setenv("HOME", arguments->working_directory, 1);
     setenv("TMPDIR", arguments->working_directory, 1);
+    setenv("HACK_IGNORE_START_ON_FIRST_THREAD", "1", 1);
     setenv("LC_ALL", "en_US.UTF-8", 1);
     chdir(arguments->working_directory);
 
