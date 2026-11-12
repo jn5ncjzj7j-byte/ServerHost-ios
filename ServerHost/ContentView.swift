@@ -17,6 +17,7 @@ struct DashboardView: View {
     @StateObject private var runtime = ServerRuntimeController()
     @State private var consoleCommand = ""
     @AppStorage("serverPort") private var serverPort = "25565"
+    @AppStorage("bedrockPort") private var bedrockPort = "19132"
     @AppStorage("serverRAM") private var ram = DeviceMemoryPolicy.recommendedAllocationMB
     @AppStorage("onlineMode") private var onlineMode = true
     @AppStorage("maxPlayers") private var maxPlayers = 20.0
@@ -72,56 +73,67 @@ struct DashboardView: View {
                             if let java = server.javaVersion {
                                 Label("Requires Java \(java)", systemImage: "cup.and.saucer").font(.subheadline)
                             }
-                            HStack {
+                            if server.edition == Edition.bedrock.rawValue {
                                 Button {
-                                    runtime.error = nil
-                                    runtime.start(profile: server, heapMB: ram, onlineMode: onlineMode, maxPlayers: Int(maxPlayers), port: serverPort)
+                                    runtime.configureBedrock(profile: server, port: bedrockPort, maxPlayers: Int(maxPlayers))
                                 } label: {
-                                    Label("Start", systemImage: "play.fill")
+                                    Label("Save Bedrock Settings", systemImage: "square.and.arrow.down")
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .tint(.green)
-                                .disabled(runtime.isRunning)
-                                Button {
-                                    runtime.sendCommand("stop")
-                                } label: {
-                                    Label("Stop", systemImage: "stop.fill")
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(!runtime.isRunning)
-                            }
-                            Text("Java servers use the bundled iOS ARM64 runtime. JIT must be enabled by your sideloading setup for practical performance. Official Bedrock server binaries are Linux-only.")
-                                .font(.caption).foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("CONSOLE").font(.caption.bold()).foregroundStyle(.secondary)
+                                Text("Bedrock uses UDP port 19132 by default. Its official server binary is Linux-only, so this saves configuration for a compatible Linux host rather than starting it on iPad.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else {
                                 HStack {
-                                    TextField("Enter server command", text: $consoleCommand)
-                                        .textFieldStyle(.roundedBorder)
-                                        .autocorrectionDisabled()
-                                        .textInputAutocapitalization(.never)
-                                        .onSubmit {
-                                            runtime.sendCommand(consoleCommand)
-                                            consoleCommand = ""
-                                        }
-                                    Button("Send") {
-                                        runtime.sendCommand(consoleCommand)
-                                        consoleCommand = ""
-                                    }
-                                    .disabled(!runtime.isRunning || consoleCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    Button {
+                                        runtime.error = nil
+                                        runtime.start(profile: server, heapMB: ram, onlineMode: onlineMode, maxPlayers: Int(maxPlayers), port: serverPort)
+                                    } label: { Label("Start", systemImage: "play.fill") }
+                                    .buttonStyle(.borderedProminent).tint(.green).disabled(runtime.isRunning)
+                                    Button { runtime.sendCommand("stop") } label: { Label("Stop", systemImage: "stop.fill") }
+                                    .buttonStyle(.bordered).disabled(!runtime.isRunning)
                                 }
-                                ScrollView {
-                                    LazyVStack(alignment: .leading, spacing: 3) {
-                                        ForEach(Array(runtime.output.suffix(250).enumerated()), id: \.offset) { _, line in
-                                            Text(line)
-                                                .font(.system(size: 11, design: .monospaced))
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .textSelection(.enabled)
+                            }
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("PLAYERS").font(.caption2.bold()).foregroundStyle(.secondary)
+                                    Text("\(runtime.onlinePlayers)/\(runtime.maximumPlayers)").font(.title3.bold().monospacedDigit())
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("RAM USAGE").font(.caption2.bold()).foregroundStyle(.secondary)
+                                    Text("\(runtime.memoryUsageMB) MB").font(.title3.bold().monospacedDigit())
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("LOCAL IP").font(.caption2.bold()).foregroundStyle(.secondary)
+                                    Text(runtime.localIPAddress).font(.subheadline.bold().monospaced()).lineLimit(1).minimumScaleFactor(0.75)
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("PORT").font(.caption2.bold()).foregroundStyle(.secondary)
+                                    Text(server.edition == Edition.bedrock.rawValue ? bedrockPort : serverPort).font(.title3.bold().monospacedDigit())
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(12).background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
+                            if server.edition != Edition.bedrock.rawValue {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("CONSOLE").font(.caption.bold()).foregroundStyle(.secondary)
+                                    HStack {
+                                        TextField("Enter server command", text: $consoleCommand)
+                                            .textFieldStyle(.roundedBorder).autocorrectionDisabled().textInputAutocapitalization(.never)
+                                            .onSubmit { runtime.sendCommand(consoleCommand); consoleCommand = "" }
+                                        Button("Send") { runtime.sendCommand(consoleCommand); consoleCommand = "" }
+                                            .disabled(!runtime.isRunning || consoleCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    }
+                                    ScrollView {
+                                        LazyVStack(alignment: .leading, spacing: 3) {
+                                            ForEach(Array(runtime.output.suffix(250).enumerated()), id: \.offset) { _, line in
+                                                Text(line).font(.system(size: 11, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+                                            }
                                         }
                                     }
+                                    .frame(height: 180).padding(8).background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
                                 }
-                                .frame(height: 180)
-                                .padding(8)
-                                .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
                             }
                             if let error = runtime.error {
                                 Text(error).font(.caption).foregroundStyle(.orange)
@@ -132,6 +144,8 @@ struct DashboardView: View {
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("DEFAULT SETTINGS").font(.caption.bold()).foregroundStyle(.secondary)
+                        TextField(server?.edition == Edition.bedrock.rawValue ? "Bedrock UDP port" : "Java TCP port", text: server?.edition == Edition.bedrock.rawValue ? $bedrockPort : $serverPort)
+                            .keyboardType(.numberPad)
                         Toggle("Online Mode", isOn: $onlineMode)
                         TextField("Maximum players (1–1,000,000)", value: $maxPlayers, format: .number.precision(.fractionLength(0)))
                             .keyboardType(.numberPad)
@@ -155,6 +169,12 @@ struct DashboardView: View {
                 }.padding()
             }
             .navigationTitle("ServerHost")
+            .task {
+                while !Task.isCancelled {
+                    runtime.refreshStats()
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                }
+            }
             .alert("Delete saved server?", isPresented: $showingDelete, presenting: profileToDelete) { server in
                 Button("Delete", role: .destructive) { store.remove(server) }
                 Button("Cancel", role: .cancel) {}
@@ -340,6 +360,7 @@ struct SettingsView: View {
     @State private var showingRuntimeInfo = false
     @AppStorage("serverName") private var serverName = "My Minecraft Server"
     @AppStorage("serverPort") private var serverPort = "25565"
+    @AppStorage("bedrockPort") private var bedrockPort = "19132"
     @AppStorage("serverRAM") private var ram = 2048.0
     @AppStorage("onlineMode") private var onlineMode = true
     @AppStorage("maxPlayers") private var maxPlayers = 20.0
@@ -347,9 +368,14 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Network ports") {
+                    TextField("Java TCP port", text: $serverPort).keyboardType(.numberPad)
+                    TextField("Bedrock UDP port", text: $bedrockPort).keyboardType(.numberPad)
+                    Text("Java defaults to 25565/TCP. Bedrock defaults to 19132/UDP. The Bedrock value is saved into its server.properties file.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 Section("Server defaults") {
                     TextField("Server name", text: $serverName)
-                    TextField("Port", text: $serverPort).keyboardType(.numberPad)
                     Toggle("Online Mode", isOn: $onlineMode)
                 }
                 Section("Resources") {
