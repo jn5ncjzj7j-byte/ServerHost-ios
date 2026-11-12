@@ -79,7 +79,7 @@ struct DashboardView: View {
                         TextField("Maximum players (1–1,000,000)", value: $maxPlayers, format: .number.precision(.fractionLength(0)))
                             .keyboardType(.numberPad)
                             .onChange(of: maxPlayers) { value in
-                                maxPlayers = min(1_000_000, max(1, value.isFinite ? value : 20))
+                                maxPlayers = Double(min(1_000_000, max(1, Int((value.isFinite ? value : 20).rounded()))))
                             }
                         HStack { Label("Memory allocation", systemImage: "memorychip"); Spacer(); Text("\(Int(ram)) MB / \(Int(DeviceMemoryPolicy.maximumJavaHeapMB)) MB").foregroundStyle(.secondary) }
                         Slider(value: $ram, in: 512...DeviceMemoryPolicy.maximumJavaHeapMB, step: 256)
@@ -306,7 +306,7 @@ struct SettingsView: View {
                     TextField("Maximum players (1–1,000,000)", value: $maxPlayers, format: .number.precision(.fractionLength(0)))
                         .keyboardType(.numberPad)
                         .onChange(of: maxPlayers) { value in
-                            maxPlayers = min(1_000_000, max(1, value.isFinite ? value : 20))
+                            maxPlayers = Double(min(1_000_000, max(1, Int((value.isFinite ? value : 20).rounded()))))
                         }
                 }
                 Section("Java runtimes") {
@@ -330,6 +330,10 @@ struct SettingsView: View {
                 Section("About") {
                     HStack { Text("Version"); Spacer(); Text("0.2.0").foregroundStyle(.secondary) }
                 }
+            }
+            .onAppear {
+                ram = DeviceMemoryPolicy.clampedAllocation(ram)
+                maxPlayers = Double(DeviceMemoryPolicy.clampedPlayerCount(maxPlayers))
             }
             .navigationTitle("Settings")
             .alert("Java runtime cannot run locally", isPresented: $showingRuntimeInfo) {
