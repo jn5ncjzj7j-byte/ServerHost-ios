@@ -8,6 +8,8 @@ A SwiftUI Minecraft server installer and multi-server profile manager for iPhone
 - Compact, scrollable version selector (three-row viewport)
 - Multiple saved server profiles
 - Automatic Java requirement detection for Java 8, 17, 21 and 25
+- Device-aware RAM limit based on physical device memory, reserving at least 1.5 GB or 37.5% for iPadOS and other apps
+- Editable maximum-player setting from 1 to 1,000,000
 - Real server-file downloads for Mojang Vanilla, Paper, PocketMine-MP and official Linux Bedrock Dedicated Server
 - Bedrock Dedicated Server downloads use Mojang's published download-link metadata and extract the Linux ZIP
 - Live download progress with percentage and downloaded/total MB
@@ -24,7 +26,7 @@ The official Bedrock Dedicated Server download source exposes the current stable
 
 Vanilla Java, Paper, PocketMine-MP and the official Linux Bedrock Dedicated Server have file-download handlers. Other listed software types remain catalog entries and will show an unsupported-installer error rather than a fake success.
 
-The Bedrock download is the Linux server package for transfer to a supported Linux host. It is not executable on iOS. Java runtime status is informational only. RAM, Online Mode and max-player preferences are not applied to a running server yet.
+The Bedrock download is the Linux server package for transfer to a supported Linux host. It is not executable on iOS. Java runtime status is informational only. RAM and max-player values are stored as settings and are not applied to a running server yet. The RAM slider is capped using device physical memory; on a 4 GB device its maximum is approximately 2.5 GB. Online Mode is also a saved preference until server launch/configuration is implemented.
 
 ## Build
 
