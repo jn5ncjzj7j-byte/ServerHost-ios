@@ -1,23 +1,26 @@
 # ServerHost iOS
 
-A SwiftUI Minecraft server manager for iPhone and iPad.
+A SwiftUI Minecraft server installer and multi-server profile manager for iPhone and iPad.
 
-## Current build
+## Implemented
 
-- Java and Bedrock software catalog
-- Software-first installer flow
-- Searchable version lists
-- Live version discovery for Mojang Vanilla, Paper, Purpur and Fabric
-- Server dashboard and configurable RAM, online mode, player limit and port
-- iPhone and iPad layouts
-- GitHub Actions workflow that builds an unsigned iOS IPA artifact
+- Java and Bedrock software catalog with searchable version lists
+- Compact, scrollable version selector (three-row viewport)
+- Multiple saved server profiles
+- Automatic Java requirement detection for Java 8, 17, 21 and 25
+- Real server-file downloads for Mojang Vanilla, Paper and PocketMine-MP
+- Bedrock plugin server release discovery from GitHub Releases where available
+- Downloaded files stored in the app's Documents directory
+- GitHub Actions unsigned IPA build
 
-## Runtime limitation
+## Platform limitations
 
-This is an early manager UI, not yet a functioning host. Start and Stop are intentionally disabled. Arbitrary Java server software needs a compatible JVM runtime. Official Bedrock Dedicated Server binaries target supported desktop/server operating systems rather than iOS. iOS also does not guarantee indefinite background execution.
+This iOS app does not yet execute Java or Bedrock server processes. Standard desktop/Linux Java distributions are not iOS-compatible runtimes, and official Bedrock Dedicated Server binaries target supported desktop/server operating systems. Java requirement detection is implemented, but installing a desktop/server JVM into iOS is not. Starting servers and dependable background hosting need a compatible runtime host, typically a Linux machine or VPS.
 
-The next engineering milestone is a tested runtime strategy for specific server software, followed by real download/install, process management, console, persistence and background behavior. Remote Linux hosting can provide reliable 24/7 operation.
+The official Bedrock Dedicated Server download source exposes the current stable build, not a complete public archive of every historical release. Third-party Bedrock server projects expose release tags where available.
+
+Only Vanilla Java, Paper and PocketMine-MP currently have working file-download handlers. Other listed software types remain catalog entries and will show an unsupported-installer error rather than a fake success.
 
 ## Build
 
-Install XcodeGen, run xcodegen generate, then build the ServerHost scheme with Xcode. GitHub Actions builds an unsigned IPA artifact. Installing it on a device requires signing or a compatible sideloading workflow.
+Install XcodeGen, run `xcodegen generate`, then build the ServerHost scheme with Xcode. GitHub Actions builds an unsigned IPA artifact. Installing it requires signing or a compatible sideloading workflow.
