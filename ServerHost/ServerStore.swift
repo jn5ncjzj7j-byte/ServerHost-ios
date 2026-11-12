@@ -88,8 +88,60 @@ enum ServerInstallError: LocalizedError {
     }
 }
 
+private final class ServerFileDownloader: NSObject, URLSessionDownloadDelegate {
+    private var continuation: CheckedContinuation<URL, Error>?
+    private var destination: URL?
+    private var session: URLSession?
+    private let progress: (Int64, Int64) -> Void
+
+    init(progress: @escaping (Int64, Int64) -> Void) {
+        self.progress = progress
+    }
+
+    func start(url: URL, destination: URL) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            self.destination = destination
+            let configuration = URLSessionConfiguration.default
+            session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+            session?.downloadTask(with: url).resume()
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        let expected = totalBytesExpectedToWrite
+        Task { @MainActor in
+            progress(totalBytesWritten, expected)
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        do {
+            guard let destination else { throw ServerInstallError.invalidResponse }
+            try FileManager.default.moveItem(at: location, to: destination)
+            continuation?.resume(returning: destination)
+            continuation = nil
+        } catch {
+            continuation?.resume(throwing: error)
+            continuation = nil
+        }
+        session.finishTasksAndInvalidate()
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error, let continuation else { return }
+        self.continuation = nil
+        continuation.resume(throwing: error)
+        session.invalidateAndCancel()
+    }
+}
+
 enum ServerInstaller {
-    static func install(software: ServerSoftware, version: String) async throws -> String {
+    static func install(
+        software: ServerSoftware,
+        version: String,
+        onProgress: @escaping (Int64, Int64) -> Void
+    ) async throws -> String {
         let source: URL
         switch software.id {
         case "vanilla": source = try await vanillaURL(version)
@@ -98,15 +150,14 @@ enum ServerInstaller {
         default: throw ServerInstallError.unsupported
         }
 
-        let (temporary, response) = try await URLSession.shared.download(from: source)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw ServerInstallError.invalidResponse }
-
         let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Servers", isDirectory: true)
         let folder = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let name = source.lastPathComponent.isEmpty ? (software.id == "pocketmine" ? "PocketMine-MP.phar" : "server.jar") : source.lastPathComponent
-        try FileManager.default.moveItem(at: temporary, to: folder.appendingPathComponent(name))
+        let destination = folder.appendingPathComponent(name)
+        let downloader = ServerFileDownloader(progress: onProgress)
+        _ = try await downloader.start(url: source, destination: destination)
         return folder.lastPathComponent + "/" + name
     }
 
