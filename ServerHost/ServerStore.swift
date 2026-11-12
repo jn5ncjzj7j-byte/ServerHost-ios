@@ -62,9 +62,10 @@ enum JavaCompatibility {
     static func required(for version: String) -> Int {
         let parts = version.split(separator: ".").compactMap { Int($0) }
         guard let major = parts.first else { return 21 }
-        if major >= 26 { return 25 }
-        if major >= 21 { return 21 }
-        if major >= 18 { return 17 }
+        let release = major == 1 ? (parts.count > 1 ? parts[1] : 0) : major
+        if release >= 26 { return 25 }
+        if release >= 21 { return 21 }
+        if release >= 18 { return 17 }
         return 8
     }
 }
@@ -102,7 +103,7 @@ enum ServerInstaller {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let name = source.lastPathComponent.isEmpty ? (software.id == "pocketmine" ? "PocketMine-MP.phar" : "server.jar") : source.lastPathComponent
         try FileManager.default.moveItem(at: temporary, to: folder.appendingPathComponent(name))
-        return name
+        return folder.lastPathComponent + "/" + name
     }
 
     private static func vanillaURL(_ version: String) async throws -> URL {
