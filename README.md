@@ -8,7 +8,8 @@ A SwiftUI Minecraft server installer and multi-server profile manager for iPhone
 - Compact, scrollable version selector (three-row viewport)
 - Multiple saved server profiles
 - Automatic Java requirement detection for Java 8, 17, 21 and 25
-- Real server-file downloads for Mojang Vanilla, Paper and PocketMine-MP
+- Real server-file downloads for Mojang Vanilla, Paper, PocketMine-MP and official Linux Bedrock Dedicated Server
+- Bedrock Dedicated Server downloads use Mojang's published download-link metadata and extract the Linux ZIP
 - Live download progress with percentage and downloaded/total MB
 - App icon asset catalog ready for your custom 1024×1024 PNG
 - Bedrock plugin server release discovery from GitHub Releases where available
@@ -21,7 +22,9 @@ This iOS app does not yet execute Java or Bedrock server processes. Standard des
 
 The official Bedrock Dedicated Server download source exposes the current stable build, not a complete public archive of every historical release. Third-party Bedrock server projects expose release tags where available.
 
-Only Vanilla Java, Paper and PocketMine-MP currently have working file-download handlers. Other listed software types remain catalog entries and will show an unsupported-installer error rather than a fake success.
+Vanilla Java, Paper, PocketMine-MP and the official Linux Bedrock Dedicated Server have file-download handlers. Other listed software types remain catalog entries and will show an unsupported-installer error rather than a fake success.
+
+The Bedrock download is the Linux server package for transfer to a supported Linux host. It is not executable on iOS. Java runtime status is informational only. RAM, Online Mode and max-player preferences are not applied to a running server yet.
 
 ## Build
 
