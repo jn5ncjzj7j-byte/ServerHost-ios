@@ -11,7 +11,10 @@ A SwiftUI Minecraft server installer and multi-server profile manager for iPhone
 - Device-aware RAM limit based on physical device memory, reserving at least 1.5 GB or 37.5% for iPadOS and other apps
 - Editable maximum-player setting from 1 to 1,000,000
 - Real server-file downloads for Mojang Vanilla, Paper, PocketMine-MP and official Linux Bedrock Dedicated Server
-- Bedrock Dedicated Server downloads use Mojang's published download-link metadata and extract the Linux ZIP
+- Bedrock Dedicated Server includes selectable stable historical releases and downloads the selected Linux ZIP
+- Java 8, 17, 21 and 25 iOS ARM64 runtime archives are fetched from the same runtime distribution used by Amethyst during CI builds
+- Java Vanilla and Paper server JARs launch through a native JLI bridge with a live console and stop command
+- Java server properties are updated from the RAM, Online Mode, player and port settings
 - Live download progress with percentage and downloaded/total MB
 - App icon asset catalog ready for your custom 1024×1024 PNG
 - Bedrock plugin server release discovery from GitHub Releases where available
@@ -20,13 +23,13 @@ A SwiftUI Minecraft server installer and multi-server profile manager for iPhone
 
 ## Platform limitations
 
-This iOS app does not yet execute Java or Bedrock server processes. Standard desktop/Linux Java distributions are not iOS-compatible runtimes, and official Bedrock Dedicated Server binaries target supported desktop/server operating systems. Java requirement detection is implemented, but installing a desktop/server JVM into iOS is not. Starting servers and dependable background hosting need a compatible runtime host, typically a Linux machine or VPS.
+The Java launcher uses the iOS ARM64 OpenJDK runtimes distributed for Amethyst and calls the runtime's JLI entry point. JIT must be available through the app's sideloading setup for practical server performance. Java server execution on iPadOS is experimental and depends on runtime signing, JIT availability and the server JAR's native dependencies.
 
-The official Bedrock Dedicated Server download source exposes the current stable build, not a complete public archive of every historical release. Third-party Bedrock server projects expose release tags where available.
+The official Bedrock Dedicated Server is a Linux executable. ServerHost can download and extract selected historical Linux releases, but cannot execute that Linux binary on iPadOS. Use a compatible Linux host to run those files.
 
-Vanilla Java, Paper, PocketMine-MP and the official Linux Bedrock Dedicated Server have file-download handlers. Other listed software types remain catalog entries and will show an unsupported-installer error rather than a fake success.
+Minecraft requires the EULA to be reviewed and accepted before starting a Java server. ServerHost creates eula.txt with eula=false; a parent or guardian should review the terms before the value is changed. RAM, Online Mode, max players and port are written to server.properties when the Java server starts.
 
-The Bedrock download is the Linux server package for transfer to a supported Linux host. It is not executable on iOS. Java runtime status is informational only. RAM and max-player values are stored as settings and are not applied to a running server yet. The RAM slider is capped using device physical memory; on a 4 GB device its maximum is approximately 2.5 GB. Online Mode is also a saved preference until server launch/configuration is implemented.
+Purpur, Fabric, Forge, NeoForge, Quilt, Nukkit and PowerNukkitX are catalog entries without installer handlers. Java server launch currently supports downloaded Vanilla and Paper JARs.
 
 ## Build
 
