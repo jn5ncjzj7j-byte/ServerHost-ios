@@ -8,6 +8,17 @@ private func server_runtime_start(_ javaHome: UnsafePointer<CChar>, _ workingDir
 @_silgen_name("server_runtime_send_command")
 private func server_runtime_send_command(_ command: UnsafePointer<CChar>) -> Int32
 
+private let serverOutputCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { message, context in
+    guard let context else { return }
+    let controller = Unmanaged<ServerRuntimeController>.fromOpaque(context).takeUnretainedValue()
+    let line = message.map { String(cString: $0) } ?? ""
+    DispatchQueue.main.async {
+        MainActor.assumeIsolated {
+            controller.consume(line)
+        }
+    }
+}
+
 @MainActor
 final class ServerRuntimeController: ObservableObject {
     @Published private(set) var isRunning = false
@@ -17,13 +28,6 @@ final class ServerRuntimeController: ObservableObject {
     @Published private(set) var memoryUsageMB = 0
     @Published private(set) var localIPAddress = "Not connected"
     @Published var error: String?
-
-    private let callback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { message, context in
-        guard let context else { return }
-        let controller = Unmanaged<ServerRuntimeController>.fromOpaque(context).takeUnretainedValue()
-        let line = message.map { String(cString: $0) } ?? ""
-        DispatchQueue.main.async { controller.consume(line) }
-    }
 
     func refreshStats() {
         localIPAddress = Self.findLocalIPv4()
@@ -171,7 +175,7 @@ final class ServerRuntimeController: ObservableObject {
         let result = javaHome.path.withCString { javaPath in
             serverDirectory.path.withCString { directoryPath in
                 installedURL.path.withCString { serverPath in
-                    server_runtime_start(javaPath, directoryPath, serverPath, Int32(DeviceMemoryPolicy.clampedAllocation(heapMB)), callback, Unmanaged.passUnretained(self).toOpaque())
+                    server_runtime_start(javaPath, directoryPath, serverPath, Int32(DeviceMemoryPolicy.clampedAllocation(heapMB)), serverOutputCallback, Unmanaged.passUnretained(self).toOpaque())
                 }
             }
         }
@@ -188,7 +192,7 @@ final class ServerRuntimeController: ObservableObject {
         trimmed.withCString { _ = server_runtime_send_command($0) }
     }
 
-    private func consume(_ line: String) {
+    fileprivate func consume(_ line: String) {
         output.append(line)
         if output.count > 500 { output.removeFirst(output.count - 500) }
         let patterns = [
