@@ -3,6 +3,10 @@ options:
   bundleIdPrefix: com.jn5ncjzj7j
   deploymentTarget:
     iOS: "16.0"
+packages:
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation
+    from: 0.9.19
 targets:
   ServerHost:
     type: application
@@ -10,6 +14,8 @@ targets:
     sources:
       - path: ServerHost
       - path: Assets.xcassets
+    dependencies:
+      - package: ZIPFoundation
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jn5ncjzj7j.ServerHost
