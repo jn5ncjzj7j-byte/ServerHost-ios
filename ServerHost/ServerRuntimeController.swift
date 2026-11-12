@@ -22,7 +22,7 @@ final class ServerRuntimeController: ObservableObject {
         guard let context else { return }
         let controller = Unmanaged<ServerRuntimeController>.fromOpaque(context).takeUnretainedValue()
         let line = message.map { String(cString: $0) } ?? ""
-        Task { @MainActor in controller.consume(line) }
+        DispatchQueue.main.async { controller.consume(line) }
     }
 
     func refreshStats() {
