@@ -16,6 +16,7 @@ targets:
       - path: Assets.xcassets
     resources:
       - path: ServerHost/JavaRuntimes
+        type: folder
     dependencies:
       - package: ZIPFoundation
     settings:
