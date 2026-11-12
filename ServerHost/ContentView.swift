@@ -103,13 +103,13 @@ struct DashboardView: View {
                                     Text(server.edition == Edition.bedrock.rawValue ? "0/\(Int(maxPlayers))" : "\(runtime.onlinePlayers)/\(runtime.maximumPlayers)").font(.title3.bold().monospacedDigit())
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text("RAM USAGE").font(.caption2.bold()).foregroundStyle(.secondary)
+                                    Text("PROCESS RAM").font(.caption2.bold()).foregroundStyle(.secondary)
                                     Text(server.edition == Edition.bedrock.rawValue ? "Linux host" : "\(runtime.memoryUsageMB) MB").font(.title3.bold().monospacedDigit())
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                             }
                             HStack(spacing: 10) {
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text("LOCAL IP").font(.caption2.bold()).foregroundStyle(.secondary)
+                                    Text("LAN IP").font(.caption2.bold()).foregroundStyle(.secondary)
                                     Text(server.edition == Edition.bedrock.rawValue ? "Linux host IP" : runtime.localIPAddress).font(.subheadline.bold().monospaced()).lineLimit(1).minimumScaleFactor(0.75)
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 5) {
@@ -119,6 +119,13 @@ struct DashboardView: View {
                             }
                             .padding(12).background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
                             if server.edition != Edition.bedrock.rawValue {
+                                Button {
+                                    runtime.sendCommand("list")
+                                } label: {
+                                    Label("Refresh player count", systemImage: "arrow.clockwise")
+                                }
+                                .font(.caption)
+                                .disabled(!runtime.isRunning)
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("CONSOLE").font(.caption.bold()).foregroundStyle(.secondary)
                                     HStack {
