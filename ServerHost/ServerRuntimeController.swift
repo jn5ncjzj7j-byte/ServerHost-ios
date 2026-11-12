@@ -8,15 +8,51 @@ private func server_runtime_start(_ javaHome: UnsafePointer<CChar>, _ workingDir
 @_silgen_name("server_runtime_send_command")
 private func server_runtime_send_command(_ command: UnsafePointer<CChar>) -> Int32
 
-private let serverOutputCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { message, context in
-    guard let context else { return }
-    let controller = Unmanaged<ServerRuntimeController>.fromOpaque(context).takeUnretainedValue()
-    let line = message.map { String(cString: $0) } ?? ""
-    DispatchQueue.main.async {
-        MainActor.assumeIsolated {
-            controller.consume(line)
+private final class ServerOutputBatcher: @unchecked Sendable {
+    static let shared = ServerOutputBatcher()
+
+    private let lock = NSLock()
+    private var pendingLines: [String] = []
+    private var pendingContext: UnsafeMutableRawPointer?
+    private var drainScheduled = false
+
+    func append(_ line: String, context: UnsafeMutableRawPointer) {
+        lock.lock()
+        pendingLines.append(line)
+        pendingContext = context
+        let shouldSchedule = !drainScheduled
+        if shouldSchedule {
+            drainScheduled = true
+        }
+        lock.unlock()
+
+        guard shouldSchedule else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.drain()
         }
     }
+
+    private func drain() {
+        lock.lock()
+        let lines = pendingLines
+        let context = pendingContext
+        pendingLines.removeAll(keepingCapacity: true)
+        pendingContext = nil
+        drainScheduled = false
+        lock.unlock()
+
+        guard !lines.isEmpty, let context else { return }
+        let controller = Unmanaged<ServerRuntimeController>.fromOpaque(context).takeUnretainedValue()
+        MainActor.assumeIsolated {
+            controller.consume(lines)
+        }
+    }
+}
+
+private let serverOutputCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { message, context in
+    guard let context else { return }
+    let line = message.map { String(cString: $0) } ?? ""
+    ServerOutputBatcher.shared.append(line, context: context)
 }
 
 @MainActor
@@ -192,30 +228,35 @@ final class ServerRuntimeController: ObservableObject {
         trimmed.withCString { _ = server_runtime_send_command($0) }
     }
 
-    fileprivate func consume(_ line: String) {
-        output.append(line)
+    fileprivate func consume(_ lines: [String]) {
+        guard !lines.isEmpty else { return }
+        output.append(contentsOf: lines)
         if output.count > 500 { output.removeFirst(output.count - 500) }
+
         let patterns = [
             #"There are\s+(\d+)\s+of a max of\s+(\d+)\s+players online"#,
             #"There are\s+(\d+)\s*/\s*(\d+)\s+players online"#,
             #"Players:\s*(\d+)\s*/\s*(\d+)"#
         ]
-        for pattern in patterns {
-            guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
-                  let match = expression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
-                  let onlineRange = Range(match.range(at: 1), in: line),
-                  let maxRange = Range(match.range(at: 2), in: line),
-                  let online = Int(line[onlineRange]),
-                  let maximum = Int(line[maxRange]) else { continue }
-            onlinePlayers = online
-            maximumPlayers = maximum
-            break
+
+        for line in lines {
+            for pattern in patterns {
+                guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+                      let match = expression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+                      let onlineRange = Range(match.range(at: 1), in: line),
+                      let maxRange = Range(match.range(at: 2), in: line),
+                      let online = Int(line[onlineRange]),
+                      let maximum = Int(line[maxRange]) else { continue }
+                onlinePlayers = online
+                maximumPlayers = maximum
+                break
+            }
+
+            if line.contains("[ServerHost] EXIT:") {
+                isRunning = false
+                onlinePlayers = 0
+            }
         }
-        if line.contains("[ServerHost] EXIT:") {
-            isRunning = false
-            onlinePlayers = 0
-        }
-        refreshStats()
     }
 
     private static func findLocalIPv4() -> String {
