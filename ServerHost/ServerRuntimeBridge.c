@@ -128,7 +128,7 @@ static void *launch_server(void *value) {
             "nogui",
             NULL
         };
-        emit_output(arguments, "[ServerHost] Starting Java server...");
+        emit_output(arguments, "[ServerHost] Java runtime loaded. Launching server...");
         int result = launch(10, argv, 0, NULL, 0, NULL, "1.8.0", "1.8", "java", "openjdk", 0, 1, 0, 1);
         char exit_message[128];
         snprintf(exit_message, sizeof(exit_message), "[ServerHost] EXIT: %d", result);
@@ -146,7 +146,6 @@ static void *launch_server(void *value) {
     server_input_fd = -1;
     pthread_mutex_unlock(&server_lock);
     pthread_join(reader, NULL);
-    dlclose(library);
     free(arguments);
     return NULL;
 }
@@ -186,7 +185,11 @@ int server_runtime_start(const char *java_home, const char *working_directory, c
     server_input_fd = input_pipe[1];
 
     pthread_t thread;
-    int result = pthread_create(&thread, NULL, launch_server, arguments);
+    pthread_attr_t attributes;
+    pthread_attr_init(&attributes);
+    pthread_attr_setstacksize(&attributes, 8 * 1024 * 1024);
+    int result = pthread_create(&thread, &attributes, launch_server, arguments);
+    pthread_attr_destroy(&attributes);
     if (result != 0) {
         server_input_fd = -1;
         close(output_pipe[0]);
