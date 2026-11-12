@@ -13,7 +13,7 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject private var store: ServerStore
-    @AppStorage("serverRAM") private var ram = 2048.0
+    @AppStorage("serverRAM") private var ram = DeviceMemoryPolicy.recommendedAllocationMB
     @AppStorage("onlineMode") private var onlineMode = true
     @AppStorage("maxPlayers") private var maxPlayers = 20.0
     @State private var profileToDelete: ServerProfile?
@@ -76,10 +76,23 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("DEFAULT SETTINGS").font(.caption.bold()).foregroundStyle(.secondary)
                         Toggle("Online Mode", isOn: $onlineMode)
-                        HStack { Label("Maximum players", systemImage: "person.3"); Spacer(); Text("\(Int(maxPlayers))").foregroundStyle(.secondary) }
-                        Slider(value: $maxPlayers, in: 1...100, step: 1).tint(.green)
-                        HStack { Label("Memory allocation", systemImage: "memorychip"); Spacer(); Text("\(Int(ram)) MB").foregroundStyle(.secondary) }
-                        Slider(value: $ram, in: 512...8192, step: 256).tint(.green)
+                        TextField("Maximum players (1–1,000,000)", value: $maxPlayers, format: .number.precision(.fractionLength(0)))
+                            .keyboardType(.numberPad)
+                            .onChange(of: maxPlayers) { value in
+                                maxPlayers = min(1_000_000, max(1, value.isFinite ? value : 20))
+                            }
+                        HStack { Label("Memory allocation", systemImage: "memorychip"); Spacer(); Text("\(Int(ram)) MB / \(Int(DeviceMemoryPolicy.maximumJavaHeapMB)) MB").foregroundStyle(.secondary) }
+                        Slider(value: $ram, in: 512...DeviceMemoryPolicy.maximumJavaHeapMB, step: 256)
+                            .tint(.green)
+                            .onChange(of: ram) { value in
+                                ram = min(DeviceMemoryPolicy.maximumJavaHeapMB, max(512, value))
+                            }
+                        Text("Device memory: \(DeviceMemoryPolicy.physicalMemoryGB, specifier: "%.1f") GB. ServerHost reserves memory for iPadOS and other apps.")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .onAppear {
+                                ram = min(DeviceMemoryPolicy.maximumJavaHeapMB, max(512, ram))
+                                maxPlayers = min(1_000_000, max(1, maxPlayers))
+                            }
                     }
                     .padding().background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
                 }.padding()
@@ -283,10 +296,18 @@ struct SettingsView: View {
                     Toggle("Online Mode", isOn: $onlineMode)
                 }
                 Section("Resources") {
-                    HStack { Text("RAM"); Spacer(); Text("\(Int(ram)) MB").foregroundStyle(.secondary) }
-                    Slider(value: $ram, in: 512...8192, step: 256)
-                    HStack { Text("Max players"); Spacer(); Text("\(Int(maxPlayers))").foregroundStyle(.secondary) }
-                    Slider(value: $maxPlayers, in: 1...100, step: 1)
+                    HStack { Text("RAM allocation"); Spacer(); Text("\(Int(ram)) MB").foregroundStyle(.secondary) }
+                    Slider(value: $ram, in: 512...DeviceMemoryPolicy.maximumJavaHeapMB, step: 256)
+                        .onChange(of: ram) { value in
+                            ram = min(DeviceMemoryPolicy.maximumJavaHeapMB, max(512, value))
+                        }
+                    Text("Device: \(DeviceMemoryPolicy.physicalMemoryGB, specifier: "%.1f") GB · Safe heap limit: \(Int(DeviceMemoryPolicy.maximumJavaHeapMB)) MB")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    TextField("Maximum players (1–1,000,000)", value: $maxPlayers, format: .number.precision(.fractionLength(0)))
+                        .keyboardType(.numberPad)
+                        .onChange(of: maxPlayers) { value in
+                            maxPlayers = min(1_000_000, max(1, value.isFinite ? value : 20))
+                        }
                 }
                 Section("Java runtimes") {
                     ForEach([8, 17, 21, 25], id: \.self) { version in
@@ -314,7 +335,7 @@ struct SettingsView: View {
             .alert("Java runtime cannot run locally", isPresented: $showingRuntimeInfo) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("This app cannot install a standard desktop Java runtime on iOS. Java servers need a compatible Linux host. The app can still identify the Java version required by each Minecraft release.")
+                Text("The iOS ARM64 Java runtime integration is not installed yet. These device-limited settings will be applied when the Java server launcher is connected.")
             }
         }
     }
