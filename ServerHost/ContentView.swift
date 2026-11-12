@@ -67,11 +67,64 @@ struct DashboardView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("SELECTED SERVER").font(.caption.bold()).foregroundStyle(.secondary)
                             Text(server.name).font(.title2.bold())
-                            Label("Files installed · Not running", systemImage: "checkmark.circle.fill").font(.subheadline).foregroundStyle(.green)
-                            Text("The server files are saved in this app. Starting server processes is not available on iOS yet.")
-                                .font(.caption).foregroundStyle(.secondary)
+                            Label(runtime.isRunning ? "Server running" : "Server stopped", systemImage: runtime.isRunning ? "play.circle.fill" : "stop.circle")
+                                .font(.subheadline).foregroundStyle(runtime.isRunning ? .green : .secondary)
                             if let java = server.javaVersion {
-                                Label("Requires Java \(java)", systemImage: "cup.and.saucer").font(.subheadline)
+                                Label("Requires Java \\(java)", systemImage: "cup.and.saucer").font(.subheadline)
+                            }
+                            HStack {
+                                Button {
+                                    runtime.error = nil
+                                    runtime.start(profile: server, heapMB: ram, onlineMode: onlineMode, maxPlayers: Int(maxPlayers), port: serverPort)
+                                } label: {
+                                    Label("Start", systemImage: "play.fill")
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.green)
+                                .disabled(runtime.isRunning)
+                                Button {
+                                    runtime.sendCommand("stop")
+                                } label: {
+                                    Label("Stop", systemImage: "stop.fill")
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(!runtime.isRunning)
+                            }
+                            Text("Java servers use the bundled iOS ARM64 runtime. JIT must be enabled by your sideloading setup for practical performance. Official Bedrock server binaries are Linux-only.")
+                                .font(.caption).foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("CONSOLE").font(.caption.bold()).foregroundStyle(.secondary)
+                                HStack {
+                                    TextField("Enter server command", text: $consoleCommand)
+                                        .textFieldStyle(.roundedBorder)
+                                        .autocorrectionDisabled()
+                                        .textInputAutocapitalization(.never)
+                                        .onSubmit {
+                                            runtime.sendCommand(consoleCommand)
+                                            consoleCommand = ""
+                                        }
+                                    Button("Send") {
+                                        runtime.sendCommand(consoleCommand)
+                                        consoleCommand = ""
+                                    }
+                                    .disabled(!runtime.isRunning || consoleCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                }
+                                ScrollView {
+                                    LazyVStack(alignment: .leading, spacing: 3) {
+                                        ForEach(Array(runtime.output.suffix(250).enumerated()), id: \\.offset) { _, line in
+                                            Text(line)
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .textSelection(.enabled)
+                                        }
+                                    }
+                                }
+                                .frame(height: 180)
+                                .padding(8)
+                                .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+                            }
+                            if let error = runtime.error {
+                                Text(error).font(.caption).foregroundStyle(.orange)
                             }
                         }
                         .padding().background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
@@ -276,7 +329,7 @@ struct InstallerView: View {
             }
             let profile = ServerProfile(software: software, version: selectedVersion, installedFile: file)
             store.add(profile)
-            installMessage = "\(profile.name) downloaded and added to your server list. Starting it is not available on iOS yet."
+            installMessage = "\(profile.name) downloaded and added to your server list. Open Servers to start a Java server; Bedrock Linux files need a compatible Linux host."
         } catch {
             installError = error.localizedDescription
         }
