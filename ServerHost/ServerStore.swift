@@ -65,7 +65,11 @@ enum JavaCompatibility {
         let release = major == 1 ? (parts.count > 1 ? parts[1] : 0) : major
         if release >= 26 { return 25 }
         if release >= 21 { return 21 }
-        if release >= 18 { return 17 }
+        if release >= 20 {
+            if release > 20 || parts.count > 2 && parts[2] >= 5 { return 21 }
+            return 17
+        }
+        if release >= 17 { return 17 }
         return 8
     }
 }
@@ -90,7 +94,7 @@ enum ServerInstaller {
         switch software.id {
         case "vanilla": source = try await vanillaURL(version)
         case "paper": source = try await paperURL(version)
-        case "pocketmine": source = try await pocketMineURL()
+        case "pocketmine": source = try await pocketMineURL(version)
         default: throw ServerInstallError.unsupported
         }
 
@@ -127,8 +131,8 @@ enum ServerInstaller {
         return url
     }
 
-    private static func pocketMineURL() async throws -> URL {
-        let endpoint = URL(string: "https://api.github.com/repos/pmmp/PocketMine-MP/releases/latest")!
+    private static func pocketMineURL(_ version: String) async throws -> URL {
+        let endpoint = URL(string: version == "Latest release" ? "https://api.github.com/repos/pmmp/PocketMine-MP/releases/latest" : "https://api.github.com/repos/pmmp/PocketMine-MP/releases/tags/\\(version)")!
         var request = URLRequest(url: endpoint)
         request.setValue("ServerHost-iOS", forHTTPHeaderField: "User-Agent")
         let data = try await URLSession.shared.data(for: request).0
