@@ -119,6 +119,9 @@ private final class ServerFileDownloader: NSObject, URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         do {
             guard let destination else { throw ServerInstallError.invalidResponse }
+            guard let response = downloadTask.response as? HTTPURLResponse, (200...299).contains(response.statusCode) else {
+                throw ServerInstallError.invalidResponse
+            }
             try FileManager.default.moveItem(at: location, to: destination)
             continuation?.resume(returning: destination)
             continuation = nil
