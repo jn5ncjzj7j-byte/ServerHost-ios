@@ -204,9 +204,14 @@ struct DashboardView: View {
             }
             .navigationTitle("ServerHost")
             .task {
+                var refreshCounter = 0
                 while !Task.isCancelled {
-                    runtime.refreshStats()
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    runtime.pollOutput()
+                    if refreshCounter % 8 == 0 {
+                        runtime.refreshStats()
+                    }
+                    refreshCounter += 1
+                    try? await Task.sleep(nanoseconds: 250_000_000)
                 }
             }
             .alert("Accept Minecraft EULA?", isPresented: $showingEULAConfirmation, presenting: profileForEULA) { server in
