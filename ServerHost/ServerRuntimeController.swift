@@ -39,6 +39,36 @@ final class ServerRuntimeController: ObservableObject {
         }
     }
 
+    func needsEULAAcceptance(for profile: ServerProfile) -> Bool {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let installedURL = documents.appendingPathComponent("Servers").appendingPathComponent(profile.installedFile)
+        let eulaURL = installedURL.deletingLastPathComponent().appendingPathComponent("eula.txt")
+        if !FileManager.default.fileExists(atPath: eulaURL.path) {
+            do {
+                try "eula=false\n".write(to: eulaURL, atomically: true, encoding: .utf8)
+            } catch {
+                self.error = "Could not create eula.txt: \(error.localizedDescription)"
+            }
+            return true
+        }
+        let contents = (try? String(contentsOf: eulaURL, encoding: .utf8)) ?? ""
+        return contents.range(of: #"(?mi)^\\s*eula\\s*=\\s*true\\s*$"#, options: .regularExpression) == nil
+    }
+
+    func acceptEULA(for profile: ServerProfile) -> Bool {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let installedURL = documents.appendingPathComponent("Servers").appendingPathComponent(profile.installedFile)
+        let eulaURL = installedURL.deletingLastPathComponent().appendingPathComponent("eula.txt")
+        do {
+            try "eula=true\\n".write(to: eulaURL, atomically: true, encoding: .utf8)
+            error = nil
+            return true
+        } catch {
+            self.error = "Could not save EULA acceptance: \\(error.localizedDescription)"
+            return false
+        }
+    }
+
     func configureBedrock(profile: ServerProfile, port: String, maxPlayers: Int) {
         guard profile.edition == Edition.bedrock.rawValue else {
             error = "Select a Bedrock server profile first."
