@@ -36,7 +36,7 @@ jobs:
           output.lockFocus()
           NSColor.white.setFill()
           NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
-          source.draw(in: NSRect(origin: .zero, size: size), from: .zero, operation: .sourceOver, fraction: 1)
+          source.draw(in: NSRect(origin: .zero, size: size), from: NSRect(origin: .zero, size: source.size), operation: .sourceOver, fraction: 1)
           output.unlockFocus()
           guard let tiff = output.tiffRepresentation,
                 let bitmap = NSBitmapImageRep(data: tiff),
