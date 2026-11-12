@@ -267,6 +267,7 @@ struct InstallerView: View {
 }
 
 struct SettingsView: View {
+    @State private var showingRuntimeInfo = false
     @AppStorage("serverName") private var serverName = "My Minecraft Server"
     @AppStorage("serverPort") private var serverPort = "25565"
     @AppStorage("serverRAM") private var ram = 2048.0
@@ -298,9 +299,11 @@ struct SettingsView: View {
                     Text("ServerHost detects the required Java version. Desktop and Linux Java packages cannot be installed as iOS runtimes.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Background hosting") {
-                    Label("iOS may suspend apps in the background.", systemImage: "moon.zzz")
-                    Text("This build downloads supported server files and manages multiple profiles. Running server processes and reliable 24/7 hosting need a compatible runtime host.")
+                Section("Hosting status") {
+                    Label("Local server execution unavailable", systemImage: "exclamationmark.triangle")
+                    Text("iOS cannot launch the downloaded Linux Bedrock executable or desktop Java server processes. The Bedrock Linux archive can be downloaded and extracted for transfer to a compatible Linux host.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("RAM, Online Mode and player limits are saved as preferences only. They are not applied to a running server until remote host management is implemented.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("About") {
@@ -308,6 +311,11 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .alert("Java runtime cannot run locally", isPresented: $showingRuntimeInfo) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This app cannot install a standard desktop Java runtime on iOS. Java servers need a compatible Linux host. The app can still identify the Java version required by each Minecraft release.")
+            }
         }
     }
 }
