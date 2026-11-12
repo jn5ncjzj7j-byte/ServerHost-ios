@@ -24,7 +24,7 @@ struct ServerSoftware: Identifiable, Hashable {
         .init(id: "forge", name: "Forge", edition: .java, detail: "Classic Java mod loader", category: "Mods", versions: ["1.21.1", "1.20.1", "1.19.2", "1.18.2", "1.16.5", "1.12.2"], source: "Forge"),
         .init(id: "neoforge", name: "NeoForge", edition: .java, detail: "Modern Java mod loader", category: "Mods", versions: ["1.21.1", "1.21.4", "1.21.5", "1.21.8", "1.21.10"], source: "NeoForged"),
         .init(id: "quilt", name: "Quilt", edition: .java, detail: "Community mod loader", category: "Mods", versions: ["1.21.1", "1.20.4", "1.20.1", "1.19.2"], source: "Quilt"),
-        .init(id: "bedrock", name: "Bedrock Dedicated Server", edition: .bedrock, detail: "Official Bedrock server · latest stable only", category: "Official", versions: ["Latest stable"], source: "Mojang"),
+        .init(id: "bedrock", name: "Bedrock Dedicated Server", edition: .bedrock, detail: "Official Bedrock server · stable releases", category: "Official", versions: BedrockVersionCatalog.versions, source: "Mojang"),
         .init(id: "pocketmine", name: "PocketMine-MP", edition: .bedrock, detail: "Bedrock server with plugins", category: "Plugins", versions: ["Latest release"], source: "GitHub Releases"),
         .init(id: "nukkit", name: "Nukkit", edition: .bedrock, detail: "Extensible Bedrock server", category: "Plugins", versions: ["Latest release"], source: "GitHub Releases"),
         .init(id: "powernukkitx", name: "PowerNukkitX", edition: .bedrock, detail: "Modern Nukkit-based server", category: "Plugins", versions: ["Latest release"], source: "GitHub Releases")
@@ -58,6 +58,8 @@ final class VersionCatalog: ObservableObject {
                 let data = try await URLSession.shared.data(from: url).0
                 let result = try JSONDecoder().decode([FabricVersion].self, from: data)
                 found = result.filter { $0.stable }.map(\.version)
+            case "bedrock":
+                found = BedrockVersionCatalog.versions
             case "pocketmine":
                 found = try await githubReleases("pmmp/PocketMine-MP")
             case "nukkit":
@@ -90,3 +92,17 @@ private struct MojangVersion: Decodable { let id: String; let type: String }
 private struct ProjectVersions: Decodable { let versions: [String] }
 private struct FabricVersion: Decodable { let version: String; let stable: Bool }
 private struct GitHubRelease: Decodable { let tag_name: String }
+
+
+enum BedrockVersionCatalog {
+    static let versions = [
+        "1.26.52.3", "1.26.3.1", "1.26.2.1", "1.26.1.1", "1.26.0.2",
+        "1.21.132.3", "1.21.131.1", "1.21.130.4", "1.21.124.2", "1.21.123.1",
+        "1.21.120.4", "1.21.114.1", "1.21.111.1", "1.21.101.1", "1.21.93.1",
+        "1.21.90.3", "1.21.80.3", "1.21.70.3", "1.21.62.1", "1.21.60.10",
+        "1.21.51.2", "1.21.50.10", "1.21.44.1", "1.21.42.1", "1.21.30.3",
+        "1.21.2.2", "1.21.0.3", "1.20.81.1", "1.20.80.5", "1.20.73.1",
+        "1.20.72.1", "1.20.62.2", "1.20.51.1", "1.20.41.2", "1.20.32.3",
+        "1.20.15.1", "1.20.10.1", "1.20.1.2", "1.19.83.1", "1.19.81.1"
+    ]
+}
