@@ -18,6 +18,33 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
       - name: Install XcodeGen
         run: brew install xcodegen
+      - name: Validate and normalize app icon
+        run: |
+          ICON="Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+          test -f "$ICON"
+          swift - "$ICON" <<'SWIFT'
+          import AppKit
+          import Foundation
+
+          let path = CommandLine.arguments[1]
+          let url = URL(fileURLWithPath: path)
+          guard let source = NSImage(contentsOf: url) else {
+              fatalError("AppIcon.png is not a readable image")
+          }
+          let size = NSSize(width: 1024, height: 1024)
+          let output = NSImage(size: size)
+          output.lockFocus()
+          NSColor.white.setFill()
+          NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+          source.draw(in: NSRect(origin: .zero, size: size), from: .zero, operation: .sourceOver, fraction: 1)
+          output.unlockFocus()
+          guard let tiff = output.tiffRepresentation,
+                let bitmap = NSBitmapImageRep(data: tiff),
+                let png = bitmap.representation(using: .png, properties: [:]) else {
+              fatalError("Could not normalize app icon")
+          }
+          try png.write(to: url, options: .atomic)
+          SWIFT
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Build unsigned app
