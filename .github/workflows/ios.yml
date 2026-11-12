@@ -45,6 +45,29 @@ jobs:
           }
           try png.write(to: url, options: .atomic)
           SWIFT
+      - name: Download iOS ARM64 Java runtimes
+        run: |
+          set -euo pipefail
+          mkdir -p ServerHost/JavaRuntimes
+          for VERSION in 8 17 21 25; do
+            WORK="$(mktemp -d)"
+            curl -fL "https://assets.angelauramc.dev/openjdk/ios-arm64/jre${VERSION}-ios-aarch64.zip" -o "$WORK/runtime.zip"
+            unzip -q "$WORK/runtime.zip" -d "$WORK/unpacked"
+            ARCHIVE="$(find "$WORK/unpacked" -name "jre${VERSION}-*.tar.xz" -print -quit)"
+            test -n "$ARCHIVE"
+            DEST="ServerHost/JavaRuntimes/java-${VERSION}-openjdk"
+            mkdir -p "$DEST"
+            tar -xJf "$ARCHIVE" -C "$DEST"
+            rm -rf "$DEST/bin" "$DEST/include" "$DEST/legal" "$DEST/man" "$DEST/jre"
+            rm -rf "$DEST/lib/ct.sym" "$DEST/lib/jspawnhelper" "$DEST/lib/libjsig.dylib" "$DEST/lib/src.zip" "$DEST/lib/tools.jar"
+            test -f "$DEST/release"
+            if [ "$VERSION" = "8" ]; then
+              test -f "$DEST/lib/jli/libjli.dylib"
+            else
+              test -f "$DEST/lib/libjli.dylib"
+            fi
+            rm -rf "$WORK"
+          done
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Build unsigned app
