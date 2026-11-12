@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import ZIPFoundation
 
 struct ServerProfile: Identifiable, Codable, Hashable {
     var id: UUID
@@ -147,6 +148,7 @@ enum ServerInstaller {
         case "vanilla": source = try await vanillaURL(version)
         case "paper": source = try await paperURL(version)
         case "pocketmine": source = try await pocketMineURL(version)
+        case "bedrock": source = try await bedrockURL()
         default: throw ServerInstallError.unsupported
         }
 
@@ -158,7 +160,24 @@ enum ServerInstaller {
         let destination = folder.appendingPathComponent(name)
         let downloader = ServerFileDownloader(progress: onProgress)
         _ = try await downloader.start(url: source, destination: destination)
+
+        if software.id == "bedrock" {
+            let extracted = folder.appendingPathComponent("extracted", isDirectory: true)
+            try FileManager.default.createDirectory(at: extracted, withIntermediateDirectories: true)
+            try FileManager.default.unzipItem(at: destination, to: extracted)
+            return folder.lastPathComponent + "/extracted/bedrock_server"
+        }
+
         return folder.lastPathComponent + "/" + name
+    }
+
+    private static func bedrockURL() async throws -> URL {
+        let endpoint = URL(string: "https://net-secondary.web.minecraft-services.net/api/v1.0/download/links")!
+        let data = try await URLSession.shared.data(from: endpoint).0
+        let response = try JSONDecoder().decode(BedrockDownloadLinks.self, from: data)
+        guard let address = response.result.links.first(where: { $0.downloadType == "serverBedrockLinux" })?.downloadUrl,
+              let url = URL(string: address) else { throw ServerInstallError.missingDownload }
+        return url
     }
 
     private static func vanillaURL(_ version: String) async throws -> URL {
@@ -217,4 +236,15 @@ private struct PaperBuilds: Decodable {
 private struct GitHubRelease: Decodable {
     struct Asset: Decodable { let name: String; let browser_download_url: String }
     let assets: [Asset]
+}
+
+private struct BedrockDownloadLinks: Decodable {
+    struct Result: Decodable {
+        struct DownloadLink: Decodable {
+            let downloadType: String
+            let downloadUrl: String
+        }
+        let links: [DownloadLink]
+    }
+    let result: Result
 }
