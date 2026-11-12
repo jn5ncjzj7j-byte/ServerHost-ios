@@ -132,7 +132,7 @@ enum ServerInstaller {
     }
 
     private static func pocketMineURL(_ version: String) async throws -> URL {
-        let endpoint = URL(string: version == "Latest release" ? "https://api.github.com/repos/pmmp/PocketMine-MP/releases/latest" : "https://api.github.com/repos/pmmp/PocketMine-MP/releases/tags/\\(version)")!
+        let endpoint = URL(string: version == "Latest release" ? "https://api.github.com/repos/pmmp/PocketMine-MP/releases/latest" : "https://api.github.com/repos/pmmp/PocketMine-MP/releases/tags/\(version)")!
         var request = URLRequest(url: endpoint)
         request.setValue("ServerHost-iOS", forHTTPHeaderField: "User-Agent")
         let data = try await URLSession.shared.data(for: request).0
