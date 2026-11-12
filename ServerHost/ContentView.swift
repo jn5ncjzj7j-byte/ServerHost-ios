@@ -70,7 +70,7 @@ struct DashboardView: View {
                             Label(runtime.isRunning ? "Server running" : "Server stopped", systemImage: runtime.isRunning ? "play.circle.fill" : "stop.circle")
                                 .font(.subheadline).foregroundStyle(runtime.isRunning ? .green : .secondary)
                             if let java = server.javaVersion {
-                                Label("Requires Java \\(java)", systemImage: "cup.and.saucer").font(.subheadline)
+                                Label("Requires Java \(java)", systemImage: "cup.and.saucer").font(.subheadline)
                             }
                             HStack {
                                 Button {
@@ -111,7 +111,7 @@ struct DashboardView: View {
                                 }
                                 ScrollView {
                                     LazyVStack(alignment: .leading, spacing: 3) {
-                                        ForEach(Array(runtime.output.suffix(250).enumerated()), id: \\.offset) { _, line in
+                                        ForEach(Array(runtime.output.suffix(250).enumerated()), id: \.offset) { _, line in
                                             Text(line)
                                                 .font(.system(size: 11, design: .monospaced))
                                                 .frame(maxWidth: .infinity, alignment: .leading)
