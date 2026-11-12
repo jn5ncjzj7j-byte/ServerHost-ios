@@ -5,6 +5,7 @@ struct ContentView: View {
         TabView {
             DashboardView().tabItem { Label("Servers", systemImage: "server.rack") }
             InstallerView().tabItem { Label("Install", systemImage: "plus.app") }
+            ServerFilesView().tabItem { Label("Files", systemImage: "folder") }
             SettingsView().tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
         }
         .tint(.green)
