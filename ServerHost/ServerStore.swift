@@ -176,7 +176,7 @@ enum ServerInstaller {
 
     private static func bedrockURL(_ version: String) async throws -> URL {
         if version != "Latest stable" {
-            guard let url = URL(string: "https://minecraft.azureedge.net/bin-linux/bedrock-server-\\(version).zip") else { throw ServerInstallError.missingDownload }
+            guard let url = URL(string: "https://minecraft.azureedge.net/bin-linux/bedrock-server-\(version).zip") else { throw ServerInstallError.missingDownload }
             return url
         }
         let endpoint = URL(string: "https://net-secondary.web.minecraft-services.net/api/v1.0/download/links")!
