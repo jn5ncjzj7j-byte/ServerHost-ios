@@ -14,6 +14,9 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject private var store: ServerStore
+    @StateObject private var runtime = ServerRuntimeController()
+    @State private var consoleCommand = ""
+    @AppStorage("serverPort") private var serverPort = "25565"
     @AppStorage("serverRAM") private var ram = DeviceMemoryPolicy.recommendedAllocationMB
     @AppStorage("onlineMode") private var onlineMode = true
     @AppStorage("maxPlayers") private var maxPlayers = 20.0
@@ -315,17 +318,17 @@ struct SettingsView: View {
                         HStack {
                             Text("Java \(version)")
                             Spacer()
-                            Text("iOS runtime unavailable").font(.caption).foregroundStyle(.secondary)
+                            Text("Bundled by build").font(.caption).foregroundStyle(.secondary)
                         }
                     }
-                    Text("ServerHost detects the required Java version. Desktop and Linux Java packages cannot be installed as iOS runtimes.")
+                    Text("ServerHost packages Amethyst-compatible iOS ARM64 Java runtimes for Java 8, 17, 21 and 25. The native JLI launcher starts Java server JARs.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Hosting status") {
-                    Label("Local server execution unavailable", systemImage: "exclamationmark.triangle")
-                    Text("iOS cannot launch the downloaded Linux Bedrock executable or desktop Java server processes. The Bedrock Linux archive can be downloaded and extracted for transfer to a compatible Linux host.")
+                    Label("Java local hosting · Bedrock Linux-only", systemImage: "server.rack")
+                    Text("Java server JARs use the bundled iOS ARM64 runtime. JIT support is required for useful performance. The official Bedrock Dedicated Server is a Linux executable and must be run on a compatible Linux host.")
                         .font(.footnote).foregroundStyle(.secondary)
-                    Text("RAM, Online Mode and player limits are saved as preferences only. They are not applied to a running server until remote host management is implemented.")
+                    Text("RAM, Online Mode, player limit and port are written to server.properties when a Java server starts. Minecraft requires eula=true in eula.txt; review the EULA with a parent or guardian before enabling it.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("About") {
