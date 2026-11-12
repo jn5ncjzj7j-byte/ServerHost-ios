@@ -105,6 +105,17 @@ struct InstallerView: View {
     @State private var isInstalling = false
     @State private var installMessage: String?
     @State private var installError: String?
+    @State private var downloadedBytes: Int64 = 0
+    @State private var expectedBytes: Int64 = 0
+
+    private var downloadFraction: Double {
+        guard expectedBytes > 0 else { return 0 }
+        return min(1, max(0, Double(downloadedBytes) / Double(expectedBytes)))
+    }
+
+    private func megabytes(_ bytes: Int64) -> String {
+        String(format: "%.1f", Double(bytes) / 1_048_576)
+    }
 
     private var software: [ServerSoftware] { ServerSoftware.all.filter { $0.edition == edition } }
     private var filteredVersions: [String] {
@@ -194,6 +205,32 @@ struct InstallerView: View {
                         }
                         .buttonStyle(.borderedProminent).tint(.green)
                         .disabled(selectedVersion.isEmpty || catalog.isLoading || isInstalling)
+
+                        if isInstalling {
+                            VStack(alignment: .leading, spacing: 9) {
+                                HStack {
+                                    ProgressView()
+                                    Text("Downloading server files").font(.subheadline.bold())
+                                    Spacer()
+                                    if expectedBytes > 0 {
+                                        Text("\(Int(downloadFraction * 100))%").font(.subheadline.monospacedDigit().bold())
+                                    } else {
+                                        Text("Preparing").font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                                ProgressView(value: expectedBytes > 0 ? downloadFraction : nil)
+                                    .tint(.green)
+                                if expectedBytes > 0 {
+                                    Text("\(megabytes(downloadedBytes)) / \(megabytes(expectedBytes)) MB")
+                                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                } else {
+                                    Text("\(megabytes(downloadedBytes)) MB downloaded")
+                                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(13)
+                            .background(.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 13))
+                        }
                     }
                 }.padding()
             }
@@ -212,9 +249,14 @@ struct InstallerView: View {
     @MainActor
     private func installSelected(_ software: ServerSoftware) async {
         isInstalling = true
+        downloadedBytes = 0
+        expectedBytes = 0
         defer { isInstalling = false }
         do {
-            let file = try await ServerInstaller.install(software: software, version: selectedVersion)
+            let file = try await ServerInstaller.install(software: software, version: selectedVersion) { received, expected in
+                downloadedBytes = received
+                expectedBytes = expected
+            }
             let profile = ServerProfile(software: software, version: selectedVersion, installedFile: file)
             store.add(profile)
             installMessage = "\(profile.name) downloaded and added to your server list. Starting it is not available on iOS yet."
