@@ -52,7 +52,7 @@ final class ServerRuntimeController: ObservableObject {
             return true
         }
         let contents = (try? String(contentsOf: eulaURL, encoding: .utf8)) ?? ""
-        return contents.range(of: #"(?mi)^\\s*eula\\s*=\\s*true\\s*$"#, options: .regularExpression) == nil
+        return contents.range(of: #"(?mi)^\s*eula\s*=\s*true\s*$"#, options: .regularExpression) == nil
     }
 
     func acceptEULA(for profile: ServerProfile) -> Bool {
@@ -60,7 +60,7 @@ final class ServerRuntimeController: ObservableObject {
         let installedURL = documents.appendingPathComponent("Servers").appendingPathComponent(profile.installedFile)
         let eulaURL = installedURL.deletingLastPathComponent().appendingPathComponent("eula.txt")
         do {
-            try "eula=true\\n".write(to: eulaURL, atomically: true, encoding: .utf8)
+            try "eula=true\n".write(to: eulaURL, atomically: true, encoding: .utf8)
             error = nil
             return true
         } catch {
