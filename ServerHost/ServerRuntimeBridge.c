@@ -20,6 +20,12 @@ typedef struct {
     void *context;
 } ServerLaunchArguments;
 
+typedef struct {
+    int descriptor;
+    ServerOutputCallback callback;
+    void *context;
+} ServerOutputArguments;
+
 static int server_input_fd = -1;
 static pthread_mutex_t server_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -28,8 +34,8 @@ static void emit_output(ServerLaunchArguments *arguments, const char *message) {
 }
 
 static void *read_server_output(void *value) {
-    ServerLaunchArguments *arguments = value;
-    int descriptor = *(int *)((char *)value + sizeof(ServerLaunchArguments));
+    ServerOutputArguments *arguments = value;
+    int descriptor = arguments->descriptor;
     char buffer[2048];
     char line[8192];
     size_t used = 0;
@@ -38,18 +44,19 @@ static void *read_server_output(void *value) {
         for (ssize_t index = 0; index < count; index++) {
             char character = buffer[index];
             if (used < sizeof(line) - 1) line[used++] = character;
-            if (character == '\n' || used == sizeof(line) - 1) {
+            if (character == '\\n' || used == sizeof(line) - 1) {
                 line[used] = 0;
-                emit_output(arguments, line);
+                if (arguments->callback) arguments->callback(line, arguments->context);
                 used = 0;
             }
         }
     }
     if (used) {
         line[used] = 0;
-        emit_output(arguments, line);
+        if (arguments->callback) arguments->callback(line, arguments->context);
     }
     close(descriptor);
+    free(arguments);
     return NULL;
 }
 
@@ -82,10 +89,46 @@ static void *launch_server(void *value) {
     close(input_read);
 
     pthread_t reader;
-    int *reader_descriptor = malloc(sizeof(int));
-    *reader_descriptor = output_read;
-    pthread_create(&reader, NULL, read_server_output, arguments);
-    free(reader_descriptor);
+    ServerOutputArguments *reader_arguments = calloc(1, sizeof(ServerOutputArguments));
+    if (!reader_arguments) {
+        dup2(saved_stdout, STDOUT_FILENO);
+        dup2(saved_stderr, STDERR_FILENO);
+        dup2(saved_stdin, STDIN_FILENO);
+        close(saved_stdout);
+        close(saved_stderr);
+        close(saved_stdin);
+        close(output_read);
+        close(input_write);
+        pthread_mutex_lock(&server_lock);
+        server_input_fd = -1;
+        pthread_mutex_unlock(&server_lock);
+        emit_output(arguments, "[ServerHost] Could not allocate the server output reader.");
+        emit_output(arguments, "[ServerHost] EXIT: -1");
+        free(arguments);
+        return NULL;
+    }
+    reader_arguments->descriptor = output_read;
+    reader_arguments->callback = arguments->callback;
+    reader_arguments->context = arguments->context;
+    int reader_result = pthread_create(&reader, NULL, read_server_output, reader_arguments);
+    if (reader_result != 0) {
+        free(reader_arguments);
+        dup2(saved_stdout, STDOUT_FILENO);
+        dup2(saved_stderr, STDERR_FILENO);
+        dup2(saved_stdin, STDIN_FILENO);
+        close(saved_stdout);
+        close(saved_stderr);
+        close(saved_stdin);
+        close(output_read);
+        close(input_write);
+        pthread_mutex_lock(&server_lock);
+        server_input_fd = -1;
+        pthread_mutex_unlock(&server_lock);
+        emit_output(arguments, "[ServerHost] Could not create the server output reader thread.");
+        emit_output(arguments, "[ServerHost] EXIT: -1");
+        free(arguments);
+        return NULL;
+    }
 
     void *library = dlopen(jli_path, RTLD_NOW | RTLD_GLOBAL);
     if (!library) {
@@ -112,6 +155,7 @@ static void *launch_server(void *value) {
     JLI_LaunchFunction launch = (JLI_LaunchFunction)dlsym(library, "JLI_Launch");
     if (!launch) {
         emit_output(arguments, "[ServerHost] JLI_Launch symbol was not found.");
+        emit_output(arguments, "[ServerHost] EXIT: -1");
     } else {
         char heap_argument[64];
         snprintf(heap_argument, sizeof(heap_argument), "-Xmx%dM", arguments->heap_mb);
@@ -160,7 +204,13 @@ int server_runtime_start(const char *java_home, const char *working_directory, c
 
     int output_pipe[2];
     int input_pipe[2];
-    if (pipe(output_pipe) != 0 || pipe(input_pipe) != 0) {
+    if (pipe(output_pipe) != 0) {
+        pthread_mutex_unlock(&server_lock);
+        return -3;
+    }
+    if (pipe(input_pipe) != 0) {
+        close(output_pipe[0]);
+        close(output_pipe[1]);
         pthread_mutex_unlock(&server_lock);
         return -3;
     }
