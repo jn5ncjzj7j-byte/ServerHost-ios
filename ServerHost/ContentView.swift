@@ -12,42 +12,64 @@ struct ContentView: View {
 }
 
 struct DashboardView: View {
-    @AppStorage("serverName") private var serverName = "My Minecraft Server"
+    @EnvironmentObject private var store: ServerStore
     @AppStorage("serverRAM") private var ram = 2048.0
     @AppStorage("onlineMode") private var onlineMode = true
     @AppStorage("maxPlayers") private var maxPlayers = 20.0
-    @State private var showRuntimeInfo = false
+    @State private var profileToDelete: ServerProfile?
+    @State private var showingDelete = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("SERVER CONTROL").font(.caption.bold()).foregroundStyle(.secondary)
-                        HStack {
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(serverName).font(.title2.bold())
-                                Label("Not running", systemImage: "circle.fill").font(.subheadline).foregroundStyle(.orange)
+                        Text("SAVED SERVERS").font(.caption.bold()).foregroundStyle(.secondary)
+                        if store.servers.isEmpty {
+                            ContentUnavailableView("No servers installed", systemImage: "server.rack", description: Text("Open Install to download a supported server."))
+                        } else {
+                            ForEach(store.servers) { server in
+                                Button { store.selectedServerID = server.id } label: {
+                                    HStack {
+                                        Image(systemName: server.edition == "Java" ? "cup.and.saucer.fill" : "cube.fill").foregroundStyle(.green)
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(server.name).font(.headline)
+                                            Text("\(server.softwareName) · \(server.version)").font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        if store.selectedServerID == server.id { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
+                                    }
+                                    .padding(11)
+                                    .background(store.selectedServerID == server.id ? .green.opacity(0.13) : .white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button("Delete server", role: .destructive) {
+                                        profileToDelete = server
+                                        showingDelete = true
+                                    }
+                                }
                             }
-                            Spacer()
-                            Image(systemName: "server.rack").font(.system(size: 38)).foregroundStyle(.green)
                         }
-                        HStack(spacing: 10) {
-                            Button {} label: { Label("Start", systemImage: "play.fill").frame(maxWidth: .infinity).padding(.vertical, 13) }
-                                .buttonStyle(.borderedProminent).tint(.green).disabled(true)
-                            Button {} label: { Label("Stop", systemImage: "stop.fill").frame(maxWidth: .infinity).padding(.vertical, 13) }
-                                .buttonStyle(.bordered).disabled(true)
-                        }
-                        Text("Server runtime is not connected in this build.").font(.caption).foregroundStyle(.secondary)
                     }
                     .padding().background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
-                    HStack(spacing: 12) {
-                        MetricCard(title: "PLAYERS", value: "—", symbol: "person.2")
-                        MetricCard(title: "MEMORY", value: "—", symbol: "memorychip")
-                        MetricCard(title: "UPTIME", value: "—", symbol: "clock")
+
+                    if let server = store.selectedServer {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("SELECTED SERVER").font(.caption.bold()).foregroundStyle(.secondary)
+                            Text(server.name).font(.title2.bold())
+                            Label("Files installed · Not running", systemImage: "checkmark.circle.fill").font(.subheadline).foregroundStyle(.green)
+                            Text("The server files are saved in this app. Starting server processes is not available on iOS yet.")
+                                .font(.caption).foregroundStyle(.secondary)
+                            if let java = server.javaVersion {
+                                Label("Requires Java \(java)", systemImage: "cup.and.saucer").font(.subheadline)
+                            }
+                        }
+                        .padding().background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
                     }
+
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("QUICK SETTINGS").font(.caption.bold()).foregroundStyle(.secondary)
+                        Text("DEFAULT SETTINGS").font(.caption.bold()).foregroundStyle(.secondary)
                         Toggle("Online Mode", isOn: $onlineMode)
                         HStack { Label("Maximum players", systemImage: "person.3"); Spacer(); Text("\(Int(maxPlayers))").foregroundStyle(.secondary) }
                         Slider(value: $maxPlayers, in: 1...100, step: 1).tint(.green)
@@ -55,45 +77,29 @@ struct DashboardView: View {
                         Slider(value: $ram, in: 512...8192, step: 256).tint(.green)
                     }
                     .padding().background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
-                    Button { showRuntimeInfo = true } label: {
-                        Label("Why can't iOS run every server?", systemImage: "info.circle").font(.footnote)
-                    }.foregroundStyle(.secondary)
-                }
-                .padding()
+                }.padding()
             }
             .navigationTitle("ServerHost")
-            .alert("iOS server runtime", isPresented: $showRuntimeInfo) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("This build includes the manager interface and version discovery, not a general-purpose Java or Bedrock runtime. Arbitrary Java servers need a compatible JVM. Bedrock Linux binaries do not run as native iOS apps. iOS may suspend background work.")
+            .alert("Delete saved server?", isPresented: $showingDelete, presenting: profileToDelete) { server in
+                Button("Delete", role: .destructive) { store.remove(server) }
+                Button("Cancel", role: .cancel) {}
+            } message: { server in
+                Text("This removes the profile from the list. Downloaded files remain in app storage.")
             }
         }
-    }
-}
-
-struct MetricCard: View {
-    let title: String
-    let value: String
-    let symbol: String
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: symbol).foregroundStyle(.green)
-            Text(value).font(.title2.bold())
-            Text(title).font(.caption2.bold()).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
     }
 }
 
 struct InstallerView: View {
+    @EnvironmentObject private var store: ServerStore
     @State private var edition: Edition = .java
     @State private var selectedSoftware: ServerSoftware?
     @State private var search = ""
     @State private var selectedVersion = ""
     @StateObject private var catalog = VersionCatalog()
-    @State private var showInstallInfo = false
+    @State private var isInstalling = false
+    @State private var installMessage: String?
+    @State private var installError: String?
 
     private var software: [ServerSoftware] { ServerSoftware.all.filter { $0.edition == edition } }
     private var filteredVersions: [String] {
@@ -103,11 +109,11 @@ struct InstallerView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 16) {
                     Picker("Edition", selection: $edition) {
                         ForEach(Edition.allCases) { item in Text(item.rawValue).tag(item) }
-                    }
-                    .pickerStyle(.segmented)
+                    }.pickerStyle(.segmented)
+
                     Text("Choose server software").font(.title2.bold())
                     ForEach(software) { item in
                         Button {
@@ -133,11 +139,11 @@ struct InstallerView: View {
                             }
                             .padding(12)
                             .background(selectedSoftware?.id == item.id ? .green.opacity(0.12) : .white.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
-                        }
-                        .buttonStyle(.plain)
+                        }.buttonStyle(.plain)
                     }
+
                     if let selectedSoftware {
-                        Divider().padding(.vertical, 4)
+                        Divider().padding(.vertical, 3)
                         Text("Choose version").font(.title2.bold())
                         Text(selectedSoftware.name + " · " + selectedSoftware.source).font(.caption).foregroundStyle(.secondary)
                         HStack {
@@ -145,36 +151,70 @@ struct InstallerView: View {
                             TextField("Search versions...", text: $search).autocorrectionDisabled()
                         }
                         .padding(12).background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+
                         if catalog.isLoading {
                             ProgressView("Loading versions...")
                         } else {
                             if let error = catalog.error { Text(error).font(.caption).foregroundStyle(.orange) }
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 105))], spacing: 9) {
-                                ForEach(filteredVersions, id: \.self) { version in
-                                    Button { selectedVersion = version } label: {
-                                        Text(version).font(.subheadline.bold()).frame(maxWidth: .infinity).padding(.vertical, 12)
-                                            .background(selectedVersion == version ? .green : .white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-                                            .foregroundStyle(selectedVersion == version ? .black : .white)
-                                    }.buttonStyle(.plain)
-                                }
+                            ScrollView(.vertical) {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
+                                    ForEach(filteredVersions, id: \.self) { version in
+                                        Button { selectedVersion = version } label: {
+                                            Text(version).font(.subheadline.bold()).frame(maxWidth: .infinity).padding(.vertical, 11)
+                                                .background(selectedVersion == version ? .green : .white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                                                .foregroundStyle(selectedVersion == version ? .black : .white)
+                                        }.buttonStyle(.plain)
+                                    }
+                                }.padding(.vertical, 2)
+                            }
+                            .frame(height: 156)
+                            .scrollIndicators(.visible)
+                            Text("\(filteredVersions.count) versions · scroll inside to see more").font(.caption2).foregroundStyle(.secondary)
+                        }
+
+                        if selectedSoftware.edition == .java && !selectedVersion.isEmpty {
+                            let java = JavaCompatibility.required(for: selectedVersion)
+                            Label("This version needs Java \(java)", systemImage: "cpu").font(.subheadline).foregroundStyle(.secondary)
+                        }
+
+                        Button {
+                            Task { await installSelected(selectedSoftware) }
+                        } label: {
+                            if isInstalling {
+                                ProgressView().frame(maxWidth: .infinity).padding(.vertical, 14)
+                            } else {
+                                Label("Install \(selectedSoftware.name)", systemImage: "arrow.down.circle.fill")
+                                    .frame(maxWidth: .infinity).padding(.vertical, 14)
                             }
                         }
-                        Button { showInstallInfo = true } label: {
-                            Label("Prepare \(selectedSoftware.name) \(selectedVersion.isEmpty ? "server" : selectedVersion)", systemImage: "arrow.down.circle.fill")
-                                .frame(maxWidth: .infinity).padding(.vertical, 14)
-                        }
                         .buttonStyle(.borderedProminent).tint(.green)
-                        .disabled(selectedVersion.isEmpty || catalog.isLoading)
+                        .disabled(selectedVersion.isEmpty || catalog.isLoading || isInstalling)
                     }
-                }
-                .padding()
+                }.padding()
             }
             .navigationTitle("Server Installer")
-            .alert("Runtime not included yet", isPresented: $showInstallInfo) {
-                Button("OK", role: .cancel) {}
+            .alert(installError == nil ? "Server installed" : "Installation failed", isPresented: Binding(
+                get: { installMessage != nil || installError != nil },
+                set: { if !$0 { installMessage = nil; installError = nil } }
+            )) {
+                Button("OK", role: .cancel) { installMessage = nil; installError = nil }
             } message: {
-                Text("You selected \(selectedSoftware?.name ?? "server") \(selectedVersion). Version search works, but installation and server execution are not implemented in this build.")
+                Text(installError ?? installMessage ?? "")
             }
+        }
+    }
+
+    @MainActor
+    private func installSelected(_ software: ServerSoftware) async {
+        isInstalling = true
+        defer { isInstalling = false }
+        do {
+            let file = try await ServerInstaller.install(software: software, version: selectedVersion)
+            let profile = ServerProfile(software: software, version: selectedVersion, installedFile: file)
+            store.add(profile)
+            installMessage = "\(profile.name) downloaded and added to your server list. Starting it is not available on iOS yet."
+        } catch {
+            installError = error.localizedDescription
         }
     }
 }
@@ -189,7 +229,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Server") {
+                Section("Server defaults") {
                     TextField("Server name", text: $serverName)
                     TextField("Port", text: $serverPort).keyboardType(.numberPad)
                     Toggle("Online Mode", isOn: $onlineMode)
@@ -200,15 +240,24 @@ struct SettingsView: View {
                     HStack { Text("Max players"); Spacer(); Text("\(Int(maxPlayers))").foregroundStyle(.secondary) }
                     Slider(value: $maxPlayers, in: 1...100, step: 1)
                 }
+                Section("Java runtimes") {
+                    ForEach([8, 17, 21, 25], id: \.self) { version in
+                        HStack {
+                            Text("Java \(version)")
+                            Spacer()
+                            Text("iOS runtime unavailable").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Text("ServerHost detects the required Java version. Desktop and Linux Java packages cannot be installed as iOS runtimes.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 Section("Background hosting") {
                     Label("iOS may suspend apps in the background.", systemImage: "moon.zzz")
-                    Text("Background execution is not guaranteed. Reliable 24/7 hosting requires a remote server or a supported runtime with an appropriate background strategy.")
+                    Text("This build downloads supported server files and manages multiple profiles. Running server processes and reliable 24/7 hosting need a compatible runtime host.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("About") {
-                    HStack { Text("Version"); Spacer(); Text("0.1.0").foregroundStyle(.secondary) }
-                    Text("Early development build. Server controls are not connected to a runtime yet.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    HStack { Text("Version"); Spacer(); Text("0.2.0").foregroundStyle(.secondary) }
                 }
             }
             .navigationTitle("Settings")
