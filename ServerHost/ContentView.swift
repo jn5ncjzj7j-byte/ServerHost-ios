@@ -23,6 +23,8 @@ struct DashboardView: View {
     @AppStorage("maxPlayers") private var maxPlayers = 20.0
     @State private var profileToDelete: ServerProfile?
     @State private var showingDelete = false
+    @State private var profileForEULA: ServerProfile?
+    @State private var showingEULAConfirmation = false
 
     private var selectedPortBinding: Binding<String> {
         store.selectedServer?.edition == Edition.bedrock.rawValue ? $bedrockPort : $serverPort
@@ -130,7 +132,12 @@ struct DashboardView: View {
                                 HStack {
                                     Button {
                                         runtime.error = nil
-                                        runtime.start(profile: server, heapMB: ram, onlineMode: onlineMode, maxPlayers: Int(maxPlayers), port: serverPort)
+                                        if runtime.needsEULAAcceptance(for: server) {
+                                            profileForEULA = server
+                                            showingEULAConfirmation = true
+                                        } else {
+                                            runtime.start(profile: server, heapMB: ram, onlineMode: onlineMode, maxPlayers: Int(maxPlayers), port: serverPort)
+                                        }
                                     } label: { Label("Start", systemImage: "play.fill") }
                                     .buttonStyle(.borderedProminent).tint(.green).disabled(runtime.isRunning)
                                     Button { runtime.sendCommand("stop") } label: { Label("Stop", systemImage: "stop.fill") }
@@ -201,6 +208,16 @@ struct DashboardView: View {
                     runtime.refreshStats()
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                 }
+            }
+            .alert("Accept Minecraft EULA?", isPresented: $showingEULAConfirmation, presenting: profileForEULA) { server in
+                Button("Accept EULA") {
+                    if runtime.acceptEULA(for: server) {
+                        runtime.start(profile: server, heapMB: ram, onlineMode: onlineMode, maxPlayers: Int(maxPlayers), port: serverPort)
+                    }
+                }
+                Button("Not now", role: .cancel) {}
+            } message: { server in
+                Text("Minecraft requires you to agree to its End User License Agreement before this server can start. Please review the EULA with a parent or guardian. Do you agree to the Minecraft EULA for \(server.name)?")
             }
             .alert("Delete saved server?", isPresented: $showingDelete, presenting: profileToDelete) { server in
                 Button("Delete", role: .destructive) { store.remove(server) }
