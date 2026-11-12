@@ -148,7 +148,7 @@ enum ServerInstaller {
         case "vanilla": source = try await vanillaURL(version)
         case "paper": source = try await paperURL(version)
         case "pocketmine": source = try await pocketMineURL(version)
-        case "bedrock": source = try await bedrockURL()
+        case "bedrock": source = try await bedrockURL(version)
         default: throw ServerInstallError.unsupported
         }
 
@@ -171,7 +171,11 @@ enum ServerInstaller {
         return folder.lastPathComponent + "/" + name
     }
 
-    private static func bedrockURL() async throws -> URL {
+    private static func bedrockURL(_ version: String) async throws -> URL {
+        if version != "Latest stable" {
+            guard let url = URL(string: "https://minecraft.azureedge.net/bin-linux/bedrock-server-\\(version).zip") else { throw ServerInstallError.missingDownload }
+            return url
+        }
         let endpoint = URL(string: "https://net-secondary.web.minecraft-services.net/api/v1.0/download/links")!
         let data = try await URLSession.shared.data(from: endpoint).0
         let response = try JSONDecoder().decode(BedrockDownloadLinks.self, from: data)
