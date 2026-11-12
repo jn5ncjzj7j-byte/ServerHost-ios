@@ -8,51 +8,39 @@ private func server_runtime_start(_ javaHome: UnsafePointer<CChar>, _ workingDir
 @_silgen_name("server_runtime_send_command")
 private func server_runtime_send_command(_ command: UnsafePointer<CChar>) -> Int32
 
-private final class ServerOutputBatcher: @unchecked Sendable {
-    static let shared = ServerOutputBatcher()
+private final class ServerOutputQueue: @unchecked Sendable {
+    static let shared = ServerOutputQueue()
 
     private let lock = NSLock()
-    private var pendingLines: [String] = []
-    private var pendingContext: UnsafeMutableRawPointer?
-    private var drainScheduled = false
+    private var lines: [String] = []
 
-    func append(_ line: String, context: UnsafeMutableRawPointer) {
+    func append(_ line: String) {
         lock.lock()
-        pendingLines.append(line)
-        pendingContext = context
-        let shouldSchedule = !drainScheduled
-        if shouldSchedule {
-            drainScheduled = true
+        lines.append(line)
+        if lines.count > 2000 {
+            lines.removeFirst(lines.count - 2000)
         }
         lock.unlock()
-
-        guard shouldSchedule else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.drain()
-        }
     }
 
-    private func drain() {
+    func take() -> [String] {
         lock.lock()
-        let lines = pendingLines
-        let context = pendingContext
-        pendingLines.removeAll(keepingCapacity: true)
-        pendingContext = nil
-        drainScheduled = false
+        let result = lines
+        lines.removeAll(keepingCapacity: true)
         lock.unlock()
+        return result
+    }
 
-        guard !lines.isEmpty, let context else { return }
-        let controller = Unmanaged<ServerRuntimeController>.fromOpaque(context).takeUnretainedValue()
-        MainActor.assumeIsolated {
-            controller.consume(lines)
-        }
+    func clear() {
+        lock.lock()
+        lines.removeAll(keepingCapacity: true)
+        lock.unlock()
     }
 }
 
-private let serverOutputCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { message, context in
-    guard let context else { return }
+private let serverOutputCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { message, _ in
     let line = message.map { String(cString: $0) } ?? ""
-    ServerOutputBatcher.shared.append(line, context: context)
+    ServerOutputQueue.shared.append(line)
 }
 
 @MainActor
@@ -64,6 +52,10 @@ final class ServerRuntimeController: ObservableObject {
     @Published private(set) var memoryUsageMB = 0
     @Published private(set) var localIPAddress = "Not connected"
     @Published var error: String?
+
+    func pollOutput() {
+        consume(ServerOutputQueue.shared.take())
+    }
 
     func refreshStats() {
         localIPAddress = Self.findLocalIPv4()
@@ -201,6 +193,7 @@ final class ServerRuntimeController: ObservableObject {
             return
         }
 
+        ServerOutputQueue.shared.clear()
         output.removeAll()
         onlinePlayers = 0
         maximumPlayers = values["max-players"].flatMap(Int.init) ?? 20
@@ -211,7 +204,7 @@ final class ServerRuntimeController: ObservableObject {
         let result = javaHome.path.withCString { javaPath in
             serverDirectory.path.withCString { directoryPath in
                 installedURL.path.withCString { serverPath in
-                    server_runtime_start(javaPath, directoryPath, serverPath, Int32(DeviceMemoryPolicy.clampedAllocation(heapMB)), serverOutputCallback, Unmanaged.passUnretained(self).toOpaque())
+                    server_runtime_start(javaPath, directoryPath, serverPath, Int32(DeviceMemoryPolicy.clampedAllocation(heapMB)), serverOutputCallback, nil)
                 }
             }
         }
