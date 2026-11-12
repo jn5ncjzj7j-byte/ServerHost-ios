@@ -174,7 +174,7 @@ static void *launch_server(void *value) {
             NULL
         };
         emit_output(arguments, "[ServerHost] Java runtime loaded. Launching server...");
-        int result = launch(10, argv, 0, NULL, 0, NULL, "1.8.0", "1.8", "java", "openjdk", 0, 1, 0, 1);
+        int result = launch(10, argv, 0, NULL, 0, NULL, "25.0.1", "25", "java", "openjdk", 1, 0, 0, 1);
         char exit_message[128];
         snprintf(exit_message, sizeof(exit_message), "[ServerHost] EXIT: %d", result);
         emit_output(arguments, exit_message);
