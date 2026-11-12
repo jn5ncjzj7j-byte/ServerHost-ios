@@ -13,6 +13,8 @@ targets:
     platform: iOS
     sources:
       - path: ServerHost
+        excludes:
+          - JavaRuntimes/**
       - path: Assets.xcassets
     resources:
       - path: ServerHost/JavaRuntimes
